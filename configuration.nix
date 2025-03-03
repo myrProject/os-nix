@@ -109,51 +109,50 @@
 		];
 	  };
 
-#  systemd.services.onlyofficeShortcut = {
-#    description = "Créer un raccourci OnlyOffice sur le bureau";
-#    wantedBy = [ "multi-user.target" ];
-#    after = [ "multi-user.target" ];
-#    serviceConfig = {
-#	Type = "oneshot";
-#	ExecStart = "/run/current-system/sw/bin/ln -s /run/current-system/sw/share/applications/onlyoffice-desktopeditors.desktop /home/benzeze/Bureau/'Only Office'";  
-#      };
-#   };
-  
-#  systemd.services.picocryptShortcut = {
-#    description = "Créer un raccourci Picocrypt sur le bureau";
-#    wantedBy = [ "multi-user.target" ];
-#    after = [ "multi-user.target" ];
-#    serviceConfig = {
-#	Type = "oneshot";
-#	ExecStart = "/run/current-system/sw/bin/ln -s /run/current-system/sw/share/applications/Picocrypt.desktop /home/benzeze/Bureau/Picocrypt";
-#      };
-#   };
-
-# Créer un script pour configurer les règles iptables
-#  systemd.services.iptablesConf = {
-#    description = "Configurer les règles iptables";
-#    wantedBy = [ "multi-user.target" ];
-#    after = [ "multi-user.target" ];
-#    serviceConfig.Type = "oneshot";
-#    serviceConfig.User = "root";
-#    serviceConfig.ExecStart = "/run/wrappers/bin/sudo /run/current-system/sw/bin/sh /etc/nixos/iptable.sh";
-#  };
-
-  systemd.services.wazuhInstall = {
-    description = "Installation Wazuh";
+  systemd.services.onlyofficeShortcut = {
+    description = "Créer un raccourci OnlyOffice sur le bureau";
     wantedBy = [ "multi-user.target" ];
     after = [ "multi-user.target" ];
-    serviceConfig.Type = "oneshot";
-    serviceConfig.User = "root";
-    serviceConfig.ExecStart = "/run/wrappers/bin/sudo /run/current-system/sw/bin/sh /etc/nixos/wazuh.sh";
-  };
+    serviceConfig = {
+	Type = "oneshot";
+	ExecStart = "/run/current-system/sw/bin/ln -s /run/current-system/sw/share/applications/onlyoffice-desktopeditors.desktop /home/benzeze/Bureau/'Only Office'";  
+      };
+   };
+  
+  systemd.services.picocryptShortcut = {
+    description = "Créer un raccourci Picocrypt sur le bureau";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "multi-user.target" ];
+    serviceConfig = {
+	Type = "oneshot";
+	ExecStart = "/run/current-system/sw/bin/ln -s /run/current-system/sw/share/applications/Picocrypt.desktop /home/benzeze/Bureau/Picocrypt";
+      };
+   };
+
+systemd.services.daily-script = {
+	description = "Exécution quotidienne du script de maj de la config";
+	serviceConfig = {
+		Type = "oneshot";
+		ExecStart = "/run/current-system/sw/bin/sh /etc/nixos/majauto.sh";
+		};
+	};
+
+ #Configurer le timer pour exécuter le service tous les jours à 7h00
+	systemd.timers.daily-script = {
+	wantedBy = [ "timers.target" ];
+	partOf = [ "daily-script.service" ];
+	timerConfig = {
+		OnCalendar = "07:00:00";
+		Persistent = true;
+		};
+	};
   # Allow unfree packages
   nixpkgs.config.allowUnfree = true; 
 
 environment.systemPackages=with pkgs; [
        vim # Do not forget to add an editor to edit configuration.nix! The Nano >
        wget
-      # iptables
+      iptables
        git
        curlWithGnuTls
        gccgo14      
@@ -168,12 +167,20 @@ environment.systemPackages=with pkgs; [
       # picocrypt 
        ocamlPackages.ssl
        libz
+       dig
        sudo
        unzip
        binutils
       # myPackage
   ];
 
-    virtualisation.docker.enable = true;
+    	networking.firewall = {
+	   enable = true;
+	   allowedTCPPorts = [ 80 443 22 ];
+	   allowedUDPPorts = [ 53 ];
+	   extraCommands = ''
+	iptables -A nixos-fw -m state --state ESTABLISHED,RELATED -j nixos-fw-accept
+      	'';
+	};
 system.stateVersion = "24.11";
 }
